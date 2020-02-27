@@ -9,6 +9,7 @@ if __name__ == '__main__':
     print(f"original ranges = {len_orig}")
 
     while True:
+        did_merge = False
         merged_ranges = deque()
         len_before = len(ranges)
         while ranges:
@@ -20,12 +21,13 @@ if __name__ == '__main__':
             assert a < b
             merged = a.merge_with(b)
             if merged:
+                did_merge = True
                 merged_ranges.append(merged)
             else:  # can't merge
                 merged_ranges.append(a)
                 ranges.appendleft(b)  # return `b` so that next we try to merge it with the next one
         ranges = merged_ranges
-        if len(ranges) == len_before:
+        if not did_merge:
             break
         print(f"reduced to {len(ranges)}")
 

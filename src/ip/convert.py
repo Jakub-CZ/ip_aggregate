@@ -6,13 +6,11 @@ IPV4 = re.compile(r"(?P<address>(\d{1,3}\.){3}\d{1,3})(/(?P<suffix>\d+))?")
 IPV6 = re.compile(r"(?P<address>([0-9A-Fa-f]{0,4}:){2,7}[0-9A-Fa-f]{0,4})(/(?P<suffix>\d+))?")
 
 
-def _dot(x, y):
-    return sum(x_i * y_i for x_i, y_i in zip(x, y))
-
-
 def ip2int(ip: str) -> int:
-    parts = [int(i) for i in ip.strip().split(".")]
-    return _dot(parts, IP_SHIFTS)
+    total = 0
+    for i in ip.strip().split("."):
+        total = (total << 8) | int(i)
+    return total
 
 
 def int2ip(ip: int) -> str:
