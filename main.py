@@ -4,7 +4,7 @@ from ip.convert import CIDR
 
 if __name__ == '__main__':
     with open("czech_ranges.txt") as f:
-        ranges = deque(CIDR.from_str(line) for line in f if line.strip())
+        ranges = deque(filter(None, (CIDR.from_str(line) for line in f if line.strip())))
     len_orig = len(ranges)
     print(f"original ranges = {len_orig}")
 

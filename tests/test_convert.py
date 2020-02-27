@@ -36,6 +36,9 @@ def test_cidr():
     assert str(CIDR.from_str("192.168.0.1/24").normalized()) == "192.168.0.0/24"
     assert str(CIDR.from_str("192.168.1.0/23").normalized()) == "192.168.0.0/23"
 
+    line = "2.16.25.0         ,2.16.25.255                            ,CZ\n"
+    assert str(CIDR.from_str(line)) == "2.16.25.0/24"
+
 
 def test_merge():
     a = CIDR.from_str("192.168.0.0/24")

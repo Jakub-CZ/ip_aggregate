@@ -46,8 +46,35 @@ class CIDR:
 
     @classmethod
     def from_str(cls, s: str):
-        prefix, suffix = s.strip().split("/")
-        return cls(ip2int(prefix), int(suffix))
+        columns = s.strip().split(",")
+        addresses = []
+        for item in columns:
+            m = IPV4.match(item)
+            if m:
+                ip = m.groupdict()
+                address = ip2int(ip["address"])
+                suffix = ip["suffix"]
+                if suffix:
+                    return cls(address, int(suffix))
+                # look for a 2nd address
+                addresses.append(address)
+                if len(addresses) == 2:
+                    return cls._from_two_addresses(*addresses)
+
+    @classmethod
+    def _from_two_addresses(cls, a, b):
+        try:
+            prefix = a & b
+            assert a == prefix, f"First address {int2ip(a)} != common prefix {int2ip(prefix)}"
+            mask = a ^ b
+            mask_length = int.bit_length(mask)
+            assert (1 << mask_length) - 1 == mask, f"Mask {mask}={bin(mask)} contains zeros"
+            return cls(prefix, 32 - mask_length)
+        except AssertionError:
+            print(f"Failed to process {int2ip(a)} and {int2ip(b)}")
+            print(f"a = {bin(a)}")
+            print(f"b = {bin(b)}")
+            raise
 
     def normalized(self):
         return CIDR(self.prefix & self._mask(), self.suffix)
