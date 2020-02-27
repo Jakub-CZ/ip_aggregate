@@ -1,6 +1,9 @@
+import re
 from dataclasses import dataclass
 
 IP_SHIFTS = (1 << 24, 1 << 16, 1 << 8, 1)
+IPV4 = re.compile(r"(?P<address>(\d{1,3}\.){3}\d{1,3})(/(?P<suffix>\d+))?")
+IPV6 = re.compile(r"(?P<address>([0-9A-Fa-f]{0,4}:){2,7}[0-9A-Fa-f]{0,4})(/(?P<suffix>\d+))?")
 
 
 def _dot(x, y):
@@ -43,7 +46,7 @@ class CIDR:
 
     @classmethod
     def from_str(cls, s: str):
-        prefix, suffix = s.split("/")
+        prefix, suffix = s.strip().split("/")
         return cls(ip2int(prefix), int(suffix))
 
     def normalized(self):
