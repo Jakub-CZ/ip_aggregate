@@ -1,39 +1,29 @@
 from collections import deque
+from itertools import chain
 
-from ip.convert import CIDR
+from ip import aggregate_subnets
+from ip.convert import CIDR, IPV4
 
-if __name__ == '__main__':
-    with open("czech_ranges.txt") as f:
-        ranges = deque(filter(None, (CIDR.from_str(line) for line in f if line.strip())))
+
+def process_file(from_file, to_file):
+    with open(from_file) as f:
+        # TODO: count addresses first, and compare with total amount at the end
+        print(f"Loading {from_file}...")
+        ranges = deque(
+            filter(None, chain.from_iterable(CIDR.many_from_str(line) for line in f if IPV4.match(line.strip()))))
     len_orig = len(ranges)
+    print("Aggregating...")
     print(f"original ranges = {len_orig}")
-
-    while True:
-        did_merge = False
-        merged_ranges = deque()
-        len_before = len(ranges)
-        while ranges:
-            a = ranges.popleft()
-            if not ranges:  # `a` is the last entry
-                merged_ranges.append(a)
-                break
-            b = ranges.popleft()
-            assert a < b
-            merged = a.merge_with(b)
-            if merged:
-                did_merge = True
-                merged_ranges.append(merged)
-            else:  # can't merge
-                merged_ranges.append(a)
-                ranges.appendleft(b)  # return `b` so that next we try to merge it with the next one
-        ranges = merged_ranges
-        if not did_merge:
-            break
-        print(f"reduced to {len(ranges)}")
-
+    ranges = aggregate_subnets(ranges)
     len_final = len(ranges)
     print(f"aggregated ranges = {len_final} ({100 * len_final / len_orig:.2f}%)")
-    with open("czech_ranges_aggregated.txt", "w") as f:
+    with open(to_file, "w") as f:
         for x in ranges:
             f.write(f"{x}\n")
+    print(f"Aggregated ranges stored in {to_file}")
+
+
+if __name__ == '__main__':
+    process_file(from_file="czech_ranges.txt", to_file="czech_ranges_aggregated.txt")
+    process_file(from_file="czsk.csv", to_file="czsk_aggregated.txt")
     print("DONE.")

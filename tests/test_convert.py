@@ -39,6 +39,16 @@ def test_cidr():
     line = "2.16.25.0         ,2.16.25.255                            ,CZ\n"
     assert str(CIDR.from_str(line)) == "2.16.25.0/24"
 
+    line = "5.39.55.24        ,5.39.55.255                            ,CZ\n"
+    with pytest.raises(ValueError):
+        CIDR.from_str(line)
+
+    assert list(str(ip) for ip in CIDR.many_from_str(line)) == [
+        "5.39.55.24/29",
+        "5.39.55.32/27",
+        "5.39.55.64/26",
+        "5.39.55.128/25"]
+
 
 def test_merge():
     a = CIDR.from_str("192.168.0.0/24")

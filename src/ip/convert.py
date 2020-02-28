@@ -1,5 +1,8 @@
 import re
+from collections import deque
 from dataclasses import dataclass
+
+from ip import aggregate_subnets
 
 IP_SHIFTS = (1 << 24, 1 << 16, 1 << 8, 1)
 IPV4 = re.compile(r"(?P<address>(\d{1,3}\.){3}\d{1,3})(/(?P<suffix>\d+))?")
@@ -44,6 +47,17 @@ class CIDR:
 
     @classmethod
     def from_str(cls, s: str):
+        iterator = iter(cls.many_from_str(s))
+        out = next(iterator)
+        try:
+            extra = next(iterator)
+        except StopIteration:
+            return out
+        else:
+            raise ValueError(f"Following line produced more than one subnet: {out}, {extra}, ...\n'{s.strip()}'")
+
+    @classmethod
+    def many_from_str(cls, s: str):
         columns = s.strip().split(",")
         addresses = []
         for item in columns:
@@ -53,26 +67,24 @@ class CIDR:
                 address = ip2int(ip["address"])
                 suffix = ip["suffix"]
                 if suffix:
-                    return cls(address, int(suffix))
+                    return [cls(address, int(suffix))]
                 # look for a 2nd address
                 addresses.append(address)
                 if len(addresses) == 2:
                     return cls._from_two_addresses(*addresses)
 
     @classmethod
-    def _from_two_addresses(cls, a, b):
-        try:
-            prefix = a & b
-            assert a == prefix, f"First address {int2ip(a)} != common prefix {int2ip(prefix)}"
-            mask = a ^ b
-            mask_length = int.bit_length(mask)
-            assert (1 << mask_length) - 1 == mask, f"Mask {mask}={bin(mask)} contains zeros"
-            return cls(prefix, 32 - mask_length)
-        except AssertionError:
-            print(f"Failed to process {int2ip(a)} and {int2ip(b)}")
-            print(f"a = {bin(a)}")
-            print(f"b = {bin(b)}")
-            raise
+    def _from_two_addresses(cls, a: int, b: int):
+        prefix = a & b
+        # assert a == prefix, f"First address {int2ip(a)} != common prefix {int2ip(prefix)}"
+        mask = a ^ b
+        mask_length = int.bit_length(mask)
+        # assert (1 << mask_length) - 1 == mask, f"Mask {mask}={bin(mask)} contains zeros"
+        if a == prefix and (1 << mask_length) - 1 == mask:
+            return [cls(prefix, 32 - mask_length)]
+        # not a proper subnet; generate list of all addresses individually and let them get aggregated at the end
+        # print(f"Improper subnet {int2ip(a)} - {int2ip(b)}; range of {b - a + 1} addresses")
+        return aggregate_subnets(deque(cls(ip, 32) for ip in range(a, b + 1)))
 
     def normalized(self):
         return CIDR(self.prefix & self._mask(), self.suffix)
