@@ -1,3 +1,5 @@
+from os.path import abspath, dirname, join
+
 import pytest
 
 from ip.convert import *
@@ -19,6 +21,20 @@ def test_ip2int():
     assert ip2int('176.16.0.1') == 2953838593
 
 
+@pytest.mark.parametrize("address_suffix",
+                         re.findall(IPV4, open(join(dirname(abspath(__file__)), "..", "czsk.csv")).read()))
+def test_ipv4_ip2int2ip(address_suffix):
+    ip = address_suffix[0]
+    assert str(CIDR._int2ip(CIDR._ip2int(ip))) == ip
+
+
+@pytest.mark.parametrize("address_suffix",
+                         re.findall(IPV6, open(join(dirname(abspath(__file__)), "..", "czsk.csv")).read()))
+def test_ipv6_ip2int2ip(address_suffix):
+    ip = address_suffix[0]
+    assert str(CIDRv6._int2ip(CIDRv6._ip2int(ip))) == ip
+
+
 @pytest.mark.parametrize("ip", [
     "::1",
     "2a03:6921:2::",
@@ -29,6 +45,8 @@ def test_ip2int():
 ])
 def test_ipv6patterns(ip):
     assert IPV6.fullmatch(ip).group("address") == ip
+    i = CIDRv6._ip2int(ip)
+    assert str(CIDRv6._int2ip(i)) == ip
 
 
 def test_ipv4patterns():

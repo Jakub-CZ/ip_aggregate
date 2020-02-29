@@ -1,11 +1,13 @@
 import re
 from collections import deque
 from dataclasses import dataclass
+from operator import sub
 
 from ip import aggregate_subnets
 
-IPV4 = re.compile(r"(?P<address>(\d{1,3}\.){3}\d{1,3})(/(?P<suffix>\d+))?")
-IPV6 = re.compile(r"(?P<address>([0-9A-Fa-f]{0,4}:){2,7}[0-9A-Fa-f]{0,4})(/(?P<suffix>\d+))?")
+IPV4 = re.compile(r"(?P<address>(?:\d{1,3}\.){3}\d{1,3})(?:/(?P<suffix>\d+))?")
+IPV6 = re.compile(r"(?P<address>(?:[0-9A-Fa-f]{0,4}:){2,7}[0-9A-Fa-f]{0,4})(?:/(?P<suffix>\d+))?")
+_IPV6_BLOCKS_OF_ZEROS = re.compile(r"(?:\W|^)0(?::0)+:?")
 
 
 @dataclass
@@ -18,8 +20,7 @@ class CIDR:
 
     @classmethod
     def _int2ip(cls, ip: int) -> str:
-        parts = [str((ip & ((1 << n) - 1)) >> (n - 8)) for n in (32, 24, 16, 8)]
-        return ".".join(parts)
+        return ".".join(str((ip & ((1 << n) - 1)) >> (n - 8)) for n in (32, 24, 16, 8))
 
     @classmethod
     def _ip2int(cls, ip: str) -> int:
@@ -39,8 +40,7 @@ class CIDR:
         if isinstance(item, CIDR):
             return self.size() >= item.size() and any(
                 self.__contains__(x) for x in (item.prefix, item.next_address() - 1))
-        else:
-            return self.prefix <= item < self.next_address()
+        return self.prefix <= item < self.next_address()
 
     def _mask(self):
         shift = self.BITS - self.suffix
@@ -72,7 +72,10 @@ class CIDR:
                 # look for a 2nd address
                 addresses.append(address)
                 if len(addresses) == 2:
-                    return cls._from_two_addresses(*addresses)
+                    a, b = addresses
+                    return cls._from_two_addresses(a, b)
+        raise ValueError(f"Following line does not contain sufficient data:\n'{s.strip()}'\n"
+                         f"parsed address expressions={[cls._int2ip(i) for i in addresses]}'")
 
     @classmethod
     def _from_two_addresses(cls, a: int, b: int):
@@ -105,3 +108,28 @@ class CIDR:
         y = CIDR(other.prefix, other.suffix - 1).normalized()
         if x == y:
             return x
+        return None
+
+
+@dataclass
+class CIDRv6(CIDR):
+    BITS = 64
+
+    @classmethod
+    def _int2ip(cls, ip: int) -> str:
+        ip = ":".join(format((ip & ((1 << n) - 1)) >> (n - 16), "x") for n in range(128, 0, -16))
+        matches = [m.span() for m in re.finditer(_IPV6_BLOCKS_OF_ZEROS, ip)]
+        if matches:
+            start, end = max(matches, key=lambda t: -sub(*t))
+            return ip[:start] + "::" + ip[end:]
+        return ip
+
+    @classmethod
+    def _ip2int(cls, ip: str) -> int:
+        total = 0
+        separators = ip.count(":")  # this is less than 7 if IP was in abbreviated format
+        ip = ip.replace("::", (9 - separators) * ":")
+        assert ip.count(":") == 7
+        for i in ip.split(":"):
+            total = (total << 16) | int("0" + i, 16)
+        return total
