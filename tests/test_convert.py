@@ -3,6 +3,16 @@ import pytest
 from ip.convert import *
 
 
+def ip2int(s):
+    # noinspection PyProtectedMember
+    return CIDR._ip2int(s)
+
+
+def int2ip(ip):
+    # noinspection PyProtectedMember
+    return CIDR._int2ip(ip)
+
+
 def test_ip2int():
     assert ip2int('192.168.1.1') == 3232235777
     assert ip2int('10.0.0.0') == 167772160
