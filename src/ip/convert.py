@@ -1,9 +1,8 @@
 import re
-from collections import deque
 from dataclasses import dataclass
 from operator import sub
 
-from ip import aggregate_subnets
+from ip import lowest_bit_on
 
 IPV4 = re.compile(r"(?P<address>(?:\d{1,3}\.){3}\d{1,3})(?:/(?P<suffix>\d+))?")
 IPV6 = re.compile(r"(?P<address>(?:[0-9A-Fa-f]{0,4}:){2,7}[0-9A-Fa-f]{0,4})(?:/(?P<suffix>\d+))?")
@@ -79,23 +78,50 @@ class CIDR:
 
     @classmethod
     def _from_two_addresses(cls, a: int, b: int):
+        total_before = b - a + 1
         prefix = a & b
-        # assert a == prefix, f"First address {int2ip(a)} != common prefix {int2ip(prefix)}"
         mask = a ^ b
         mask_length = int.bit_length(mask)
-        # assert (1 << mask_length) - 1 == mask, f"Mask {mask}={bin(mask)} contains zeros"
         if a == prefix and (1 << mask_length) - 1 == mask:
-            return [cls(prefix, cls.BITS - mask_length)]
-        # not a proper subnet; generate list of all addresses individually and let them get aggregated at the end
-        # print(f"Improper subnet {int2ip(a)} - {int2ip(b)}; range of {b - a + 1} addresses")
-        return aggregate_subnets(deque(cls(ip, cls.BITS) for ip in range(a, b + 1)))
+            out = [cls(prefix, cls.BITS - mask_length)]
+        else:
+            # not a proper subnet; need to find multiple subnets that cover the given range of addresses
+            sub_start = a
+            total_end = b + 1
+            out = []
+            while True:
+                next_subnet = cls(sub_start, cls.BITS - lowest_bit_on(sub_start))
+                if next_subnet.next_address() >= total_end:
+                    break
+                out.append(next_subnet)
+                sub_start = next_subnet.next_address()
+            remainder = total_end - sub_start
+            while remainder:
+                assert remainder > 0
+                next_subnet = cls(sub_start, cls.BITS + 1 - int.bit_length(remainder))
+                sub_start += next_subnet.size()
+                out.append(next_subnet)
+                remainder = total_end - sub_start
+
+        total_after = sum(ip.size() for ip in out)
+        assert total_before == total_after, f"{total_before} != {total_after}\n" \
+                                            f"a = {a} = {bin(a)} ({cls._int2ip(a)})\n" \
+                                            f"b = {b} = {bin(b)} ({cls._int2ip(b)})\n" \
+                                            f"b+1={b + 1} = {bin(b + 1)} ({cls._int2ip(b + 1)})\n" \
+                                            f"out = {out}\n" \
+                                            f""
+        return out
 
     def normalized(self):
         return CIDR(self.prefix & self._mask(), self.suffix)
 
+    @classmethod
+    def _suffix2size(cls, suffix) -> int:
+        return 1 << (cls.BITS - suffix)
+
     def size(self) -> int:
         """Returns number of addresses in the range"""
-        return 1 << (self.BITS - self.suffix)
+        return self._suffix2size(self.suffix)
 
     def next_address(self) -> int:
         """Returns first address right AFTER this address range"""

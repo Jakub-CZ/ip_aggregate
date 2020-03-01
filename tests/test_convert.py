@@ -1,8 +1,12 @@
+from itertools import islice
 from os.path import abspath, dirname, join
 
 import pytest
 
 from ip.convert import *
+
+ADDRESS_FILE = join(dirname(abspath(__file__)), "..", "czsk.csv")
+LIMIT_TEST_CASES = 100
 
 
 def ip2int(s):
@@ -22,14 +26,14 @@ def test_ip2int():
 
 
 @pytest.mark.parametrize("address_suffix",
-                         re.findall(IPV4, open(join(dirname(abspath(__file__)), "..", "czsk.csv")).read()))
+                         islice(re.findall(IPV4, open(ADDRESS_FILE).read()), LIMIT_TEST_CASES))
 def test_ipv4_ip2int2ip(address_suffix):
     ip = address_suffix[0]
     assert str(CIDR._int2ip(CIDR._ip2int(ip))) == ip
 
 
 @pytest.mark.parametrize("address_suffix",
-                         re.findall(IPV6, open(join(dirname(abspath(__file__)), "..", "czsk.csv")).read()))
+                         islice(re.findall(IPV6, open(ADDRESS_FILE).read()), LIMIT_TEST_CASES))
 def test_ipv6_ip2int2ip(address_suffix):
     ip = address_suffix[0]
     assert str(CIDRv6._int2ip(CIDRv6._ip2int(ip))) == ip
@@ -86,6 +90,17 @@ def test_merge():
     assert a.merge_with(b) == CIDR(a.prefix, 23)
     assert b.merge_with(c) is None
     assert a.merge_with(c) is None
+
+
+@pytest.mark.parametrize("ip_range,expected_subnets", [
+    ("192.168.1.72,192.168.1.255", ["192.168.1.72/29", "192.168.1.80/28", "192.168.1.96/27", "192.168.1.128/25"]),
+    ("2.16.25.0,2.16.25.255", ["2.16.25.0/24"]),
+    ("5.180.196.0,5.180.203.255", ["5.180.196.0/22", "5.180.200.0/22"]),
+    ("13.32.112.0,13.32.114.255", ["13.32.112.0/23", "13.32.114.0/24"]),
+])
+def test__from_two_addresses(ip_range, expected_subnets):
+    a, b = ip_range.split(",")
+    assert list(str(ip) for ip in CIDR._from_two_addresses(ip2int(a), ip2int(b))) == expected_subnets
 
 
 if __name__ == '__main__':

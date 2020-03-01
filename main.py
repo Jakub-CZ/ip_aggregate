@@ -14,7 +14,7 @@ def process_file(from_file, to_file):
             if not line:
                 continue
             len_orig += 1
-            if IPV4.match(line):
+            if IPV4.match(line):  # TODO: add IPV6
                 ranges.extend(CIDR.many_from_str(line))
     print("Aggregating...")
     print(f"original ranges = {len_orig:n}")

@@ -13,6 +13,7 @@ def filter_country(file_in: str, file_out: str, codes: Tuple[str, ...]):
 
 
 def aggregate_subnets(subnets: Deque, report=False):
+    subnets = subnets.copy()
     while True:
         did_merge = False
         merged_subnets = deque()
@@ -38,7 +39,12 @@ def aggregate_subnets(subnets: Deque, report=False):
             if report:
                 print(f"Total number of addresses: {total_after:n}")
             return subnets
-        # print(f"reduced to {len(subnets)}")
+
+
+def lowest_bit_on(n):
+    for off in range(int.bit_length(n)):
+        if n & (1 << off):
+            return off
 
 
 if __name__ == '__main__':
