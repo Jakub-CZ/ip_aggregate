@@ -37,7 +37,8 @@ def aggregate_subnets(subnets: Deque, report=False):
         assert total_before == total_after
         if not did_merge:
             if report:
-                print(f"Total number of addresses: {total_after:n}")
+                print(f"Total number of addresses: {total_after:n}",
+                      '' if total_after < 1e9 else f"~= {total_after:.2e}")
             return subnets
 
 

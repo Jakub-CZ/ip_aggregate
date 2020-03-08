@@ -4,10 +4,6 @@ from operator import sub
 
 from ip import lowest_bit_on
 
-IPV4 = re.compile(r"(?P<address>(?:\d{1,3}\.){3}\d{1,3})(?:/(?P<suffix>\d+))?")
-IPV6 = re.compile(r"(?P<address>(?:[0-9A-Fa-f]{0,4}:){2,7}[0-9A-Fa-f]{0,4})(?:/(?P<suffix>\d+))?")
-_IPV6_BLOCKS_OF_ZEROS = re.compile(r"(?:\W|^)0(?::0)+:?")
-
 
 @dataclass
 class CIDR:
@@ -16,6 +12,11 @@ class CIDR:
     suffix: int
 
     BITS = 32
+    IP_PATTERN = re.compile(r"(?P<address>(?:\d{1,3}\.){3}\d{1,3})(?:/(?P<suffix>\d+))?")
+
+    @classmethod
+    def match(cls, string: str):
+        return cls.IP_PATTERN.match(string)
 
     @classmethod
     def _int2ip(cls, ip: int) -> str:
@@ -28,7 +29,7 @@ class CIDR:
             total = (total << 8) | int(i)
         return total
 
-    def __repr__(self):
+    def __str__(self):
         return f"{self._int2ip(self.prefix)}/{self.suffix}"
 
     def __lt__(self, other):
@@ -61,7 +62,7 @@ class CIDR:
         columns = s.strip().split(",")
         addresses = []
         for item in columns:
-            m = IPV4.match(item)
+            m = cls.IP_PATTERN.match(item)
             if m:
                 ip = m.groupdict()
                 address = cls._ip2int(ip["address"])
@@ -74,7 +75,7 @@ class CIDR:
                     a, b = addresses
                     return cls._from_two_addresses(a, b)
         raise ValueError(f"Following line does not contain sufficient data:\n'{s.strip()}'\n"
-                         f"parsed address expressions={[cls._int2ip(i) for i in addresses]}'")
+                         f"parsed address expressions={[cls._int2ip(i) for i in addresses]}")
 
     @classmethod
     def _from_two_addresses(cls, a: int, b: int):
@@ -113,7 +114,7 @@ class CIDR:
         return out
 
     def normalized(self):
-        return CIDR(self.prefix & self._mask(), self.suffix)
+        return type(self)(self.prefix & self._mask(), self.suffix)
 
     @classmethod
     def _suffix2size(cls, suffix) -> int:
@@ -130,8 +131,8 @@ class CIDR:
     def merge_with(self, other):
         if self.suffix != other.suffix:
             return None  # only same-size ranges can be merged
-        x = CIDR(self.prefix, self.suffix - 1).normalized()  # smallest strict superset of address range `a`
-        y = CIDR(other.prefix, other.suffix - 1).normalized()
+        x = type(self)(self.prefix, self.suffix - 1).normalized()  # smallest strict superset of address range `a`
+        y = type(self)(other.prefix, other.suffix - 1).normalized()
         if x == y:
             return x
         return None
@@ -139,12 +140,15 @@ class CIDR:
 
 @dataclass
 class CIDRv6(CIDR):
-    BITS = 64
+    BITS = 128
+    IP_PATTERN = re.compile(r"(?P<address>(?:[0-9A-Fa-f]{0,4}:){2,7}[0-9A-Fa-f]{0,4})(?:/(?P<suffix>\d+))?")
+
+    _IPV6_BLOCKS_OF_ZEROS = re.compile(r"(?:\W|^)0(?::0)+:?")
 
     @classmethod
     def _int2ip(cls, ip: int) -> str:
         ip = ":".join(format((ip & ((1 << n) - 1)) >> (n - 16), "x") for n in range(128, 0, -16))
-        matches = [m.span() for m in re.finditer(_IPV6_BLOCKS_OF_ZEROS, ip)]
+        matches = [m.span() for m in re.finditer(cls._IPV6_BLOCKS_OF_ZEROS, ip)]
         if matches:
             start, end = max(matches, key=lambda t: -sub(*t))
             return ip[:start] + "::" + ip[end:]

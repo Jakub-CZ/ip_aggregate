@@ -26,14 +26,14 @@ def test_ip2int():
 
 
 @pytest.mark.parametrize("address_suffix",
-                         islice(re.findall(IPV4, open(ADDRESS_FILE).read()), LIMIT_TEST_CASES))
+                         islice(re.findall(CIDR.IP_PATTERN, open(ADDRESS_FILE).read()), LIMIT_TEST_CASES))
 def test_ipv4_ip2int2ip(address_suffix):
     ip = address_suffix[0]
     assert str(CIDR._int2ip(CIDR._ip2int(ip))) == ip
 
 
 @pytest.mark.parametrize("address_suffix",
-                         islice(re.findall(IPV6, open(ADDRESS_FILE).read()), LIMIT_TEST_CASES))
+                         islice(re.findall(CIDRv6.IP_PATTERN, open(ADDRESS_FILE).read()), LIMIT_TEST_CASES))
 def test_ipv6_ip2int2ip(address_suffix):
     ip = address_suffix[0]
     assert str(CIDRv6._int2ip(CIDRv6._ip2int(ip))) == ip
@@ -48,16 +48,16 @@ def test_ipv6_ip2int2ip(address_suffix):
     "2a03:b600:291::3fff:ffff",
 ])
 def test_ipv6patterns(ip):
-    assert IPV6.fullmatch(ip).group("address") == ip
+    assert CIDRv6.IP_PATTERN.fullmatch(ip).group("address") == ip
     i = CIDRv6._ip2int(ip)
     assert str(CIDRv6._int2ip(i)) == ip
 
 
 def test_ipv4patterns():
-    m = IPV4.fullmatch('192.168.1.1')
+    m = CIDR.IP_PATTERN.fullmatch('192.168.1.1')
     assert m.group("address") == "192.168.1.1"
     assert m.group("suffix") is None
-    m = IPV4.fullmatch('192.168.1.1/24')
+    m = CIDR.IP_PATTERN.fullmatch('192.168.1.1/24')
     assert m.group("address") == "192.168.1.1"
     assert m.group("suffix") == "24"
 
