@@ -55,7 +55,7 @@ class CIDR:
         except StopIteration:
             return out
         else:
-            raise ValueError(f"Following line produced more than one subnet: {out}, {extra}, ...\n'{s.strip()}'")
+            raise ValueError(f"Following line produced more than one subnet! {out}, {extra}, ...\n'{s.strip()}'")
 
     @classmethod
     def many_from_str(cls, s: str):
@@ -74,7 +74,7 @@ class CIDR:
                 if len(addresses) == 2:
                     a, b = addresses
                     return cls._from_two_addresses(a, b)
-        raise ValueError(f"Following line does not contain sufficient data:\n'{s.strip()}'\n"
+        raise ValueError(f"Following line does not contain sufficient data!\n'{s.strip()}'\n"
                          f"parsed address expressions={[cls._int2ip(i) for i in addresses]}")
 
     @classmethod

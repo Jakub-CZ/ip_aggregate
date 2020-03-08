@@ -23,7 +23,7 @@ def process_file(from_file, to_file):
                 len_orig_v6 += 1
                 ranges_v6.extend(CIDRv6.many_from_str(line))
                 continue
-            raise ValueError(f"Unprocessed line:\n'{line}'")
+            raise ValueError(f"Unprocessed line!\n'{line}'")
     print("Aggregating...")
     print(f"original v4 ranges = {len_orig_v4:n}")
     print(f"original v6 ranges = {len_orig_v6:n}")

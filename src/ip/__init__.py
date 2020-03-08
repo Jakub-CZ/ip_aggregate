@@ -46,6 +46,7 @@ def lowest_bit_on(n):
     for off in range(int.bit_length(n)):
         if n & (1 << off):
             return off
+    raise ValueError(f"No bit on in '{n}'!")
 
 
 if __name__ == '__main__':
