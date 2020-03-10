@@ -1,3 +1,4 @@
+import argparse
 from collections import deque
 
 from ip import aggregate_subnets
@@ -43,6 +44,43 @@ def process_file(from_file, to_file):
 
 
 if __name__ == '__main__':
-    process_file(from_file="czech_ranges.txt", to_file="czech_ranges_aggregated.txt")
-    process_file(from_file="czsk.csv", to_file="czsk_aggregated.txt")
-    print("DONE.")
+    parser = argparse.ArgumentParser(
+        description="Převede libovolné IP rozsahy na IP subnety zapsané ve formátu CIDR (např.: 1.2.3.0/24).\n"
+                    "Některé netypické rozsahy musí být reprezentovány pomocí více subnetů",
+        formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument('from_file', help='jméno souboru, který obsahuje IP rozsahy; '
+                                          'na každém řádku právě jeden rozsah;\n'
+                                          'podporované formáty:\n'
+                                          "    1.2.3.0/24\n"
+                                          "    5.6.7.0  ,  5.6.7.128  ,  KOMENTÁŘ",
+                        )
+    parser.add_argument("destination", help="soubor pro výstup")
+
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--to-file", "-f", action="store_true",
+                       help="výstup bude zapsán do souboru specifikovaného parametrem 'destination'")
+    # TODO: add --format for --to_file
+    group.add_argument("--to-db", "-d", action="store_true",
+                       help="výstup bude zapsán do databáze;\n"
+                            "soubor s údaji potřebnými pro připojení k DB je specifikovaný parametrem 'destination'")
+
+    args = parser.parse_args()
+
+    destination = args.destination  # type: str
+    if args.to_file:
+        assert not destination.endswith(".py"), f"Pravděpodobná chyba v zadaných parametrech, " \
+                                                f"výstupní soubor {destination} je Python skript!"
+        process_file(from_file=args.from_file, to_file=destination)
+    elif args.to_db:
+        assert destination.endswith(".py"), f"Pravděpodobná chyba v zadaných parametrech, " \
+                                            f" soubor {destination} musí být Python skript!"
+        with open(destination) as f:
+            exec(f.read())
+        db_vars = {"ADDRESS", "PORT", "DB", "USER", "PASSWORD"}
+        assert db_vars.issubset(locals().keys()), f"Chybí tyto hodnoty: {db_vars - locals().keys()}"
+        print(f">>> Tady bude připojení k DB {locals()['ADDRESS']} jako uživatel {locals()['USER']} "
+              f"heslem {locals()['PASSWORD']}")
+    else:
+        raise ValueError(f"Nebyla zvolena žádná známá akce;\nargs={args}")
+
+    print("Dokončeno.")
