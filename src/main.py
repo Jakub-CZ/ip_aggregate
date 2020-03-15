@@ -36,17 +36,34 @@ def process_file(from_file, to_file):
     len_final_v6 = len(ranges_v6)
     if len_orig_v6:
         print(f"aggregated v6 ranges = {len_final_v6:n} ({100 * len_final_v6 / len_orig_v6:.2f}%)")
+    write_routine = write_plain_text
+    if to_file.lower().endswith(".rsc"):
+        write_routine = write_rsc
+    write_routine(to_file, ranges_v4, ranges_v6)
+    print(f"Aggregated ranges stored in {to_file}\n")
+
+
+def write_plain_text(to_file, ranges_v4, ranges_v6):
     with open(to_file, "w") as f:
         for x in ranges_v4 + ranges_v6:
             f.write(f"{x}\n")
-    print(f"Aggregated ranges stored in {to_file}")
-    print()
 
 
-if __name__ == '__main__':
+def write_rsc(to_file, ranges_v4, ranges_v6):
+    with open(to_file, "w") as f:
+        f.write("/ip firewall address-list\n")
+        for x in ranges_v4:
+            f.write(f'add address={x} comment="Czech Republic" list=Country_IP_Allows\n')
+        f.write("\n")
+        f.write("/ipv6 firewall address-list\n")
+        for x in ranges_v6:
+            f.write(f'add address={x} comment="Czech Republic" list=Country_IP_Allows\n')
+
+
+def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Převede libovolné IP rozsahy na IP subnety zapsané ve formátu CIDR (např.: 1.2.3.0/24).\n"
-                    "Některé netypické rozsahy musí být reprezentovány pomocí více subnetů",
+                    "Některé netypické rozsahy musí být reprezentovány pomocí více subnetů.",
         formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('from_file', help='jméno souboru, který obsahuje IP rozsahy; '
                                           'na každém řádku právě jeden rozsah;\n'
@@ -54,18 +71,19 @@ if __name__ == '__main__':
                                           "    1.2.3.0/24\n"
                                           "    5.6.7.0  ,  5.6.7.128  ,  KOMENTÁŘ",
                         )
-    parser.add_argument("destination", help="soubor pro výstup")
-
+    parser.add_argument("destination", help="soubor pro výstup; "
+                                            "formát výstupních dat závisí na příponě uvedeného souboru.")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--to-file", "-f", action="store_true",
                        help="výstup bude zapsán do souboru specifikovaného parametrem 'destination'")
-    # TODO: add --format for --to_file
     group.add_argument("--to-db", "-d", action="store_true",
                        help="výstup bude zapsán do databáze;\n"
                             "soubor s údaji potřebnými pro připojení k DB je specifikovaný parametrem 'destination'")
+    return parser.parse_args()
 
-    args = parser.parse_args()
 
+def cli():
+    args = parse_arguments()
     destination = args.destination  # type: str
     if args.to_file:
         assert not destination.endswith(".py"), f"Pravděpodobná chyba v zadaných parametrech, " \
@@ -84,3 +102,7 @@ if __name__ == '__main__':
         raise ValueError(f"Nebyla zvolena žádná známá akce;\nargs={args}")
 
     print("Dokončeno.")
+
+
+if __name__ == '__main__':
+    cli()
