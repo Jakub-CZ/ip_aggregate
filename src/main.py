@@ -5,7 +5,24 @@ from ip import aggregate_subnets
 from ip.convert import CIDR, CIDRv6
 
 
-def process_file(from_file, to_file):
+def write_plain_text(to_file, ranges_v4, ranges_v6):
+    with open(to_file, "w") as f:
+        for x in ranges_v4 + ranges_v6:
+            f.write(f"{x}\n")
+
+
+def write_rsc(to_file, ranges_v4, ranges_v6):
+    with open(to_file, "w") as f:
+        f.write("/ip firewall address-list\n")
+        for x in ranges_v4:
+            f.write(f'add address={x} comment="Czech Republic" list=Country_IP_Allows\n')
+        f.write("\n")
+        f.write("/ipv6 firewall address-list\n")
+        for x in ranges_v6:
+            f.write(f'add address={x} comment="Czech Republic" list=Country_IP_Allows\n')
+
+
+def process_file(from_file, to_file, write_routine):
     with open(from_file) as f:
         print(f"Loading {from_file}...")
         ranges_v4 = deque()
@@ -36,28 +53,8 @@ def process_file(from_file, to_file):
     len_final_v6 = len(ranges_v6)
     if len_orig_v6:
         print(f"aggregated v6 ranges = {len_final_v6:n} ({100 * len_final_v6 / len_orig_v6:.2f}%)")
-    write_routine = write_plain_text
-    if to_file.lower().endswith(".rsc"):
-        write_routine = write_rsc
     write_routine(to_file, ranges_v4, ranges_v6)
     print(f"Aggregated ranges stored in {to_file}\n")
-
-
-def write_plain_text(to_file, ranges_v4, ranges_v6):
-    with open(to_file, "w") as f:
-        for x in ranges_v4 + ranges_v6:
-            f.write(f"{x}\n")
-
-
-def write_rsc(to_file, ranges_v4, ranges_v6):
-    with open(to_file, "w") as f:
-        f.write("/ip firewall address-list\n")
-        for x in ranges_v4:
-            f.write(f'add address={x} comment="Czech Republic" list=Country_IP_Allows\n')
-        f.write("\n")
-        f.write("/ipv6 firewall address-list\n")
-        for x in ranges_v6:
-            f.write(f'add address={x} comment="Czech Republic" list=Country_IP_Allows\n')
 
 
 def parse_arguments():
@@ -88,7 +85,8 @@ def cli():
     if args.to_file:
         assert not destination.endswith(".py"), f"Pravděpodobná chyba v zadaných parametrech, " \
                                                 f"výstupní soubor {destination} je Python skript!"
-        process_file(from_file=args.from_file, to_file=destination)
+        write_routine = write_rsc if destination.lower().endswith(".rsc") else write_plain_text
+        process_file(from_file=args.from_file, to_file=destination, write_routine=write_routine)
     elif args.to_db:
         assert destination.endswith(".py"), f"Pravděpodobná chyba v zadaných parametrech, " \
                                             f" soubor {destination} musí být Python skript!"
@@ -98,6 +96,7 @@ def cli():
         assert db_vars.issubset(locals().keys()), f"Chybí tyto hodnoty: {db_vars - locals().keys()}"
         print(f">>> Tady bude připojení k DB {locals()['ADDRESS']} jako uživatel {locals()['USER']} "
               f"heslem {locals()['PASSWORD']}")
+        write_routine = write_rsc if destination.lower().endswith(".rsc") else write_plain_text
     else:
         raise ValueError(f"Nebyla zvolena žádná známá akce;\nargs={args}")
 
