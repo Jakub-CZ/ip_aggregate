@@ -51,6 +51,7 @@ def test_ipv6patterns(ip):
     assert CIDRv6.IP_PATTERN.fullmatch(ip).group("address") == ip
     i = CIDRv6._ip2int(ip)
     assert str(CIDRv6._int2ip(i)) == ip
+    assert CIDRv6.from_str(ip + "/128").ip == ip
 
 
 def test_ipv4patterns():
@@ -64,6 +65,7 @@ def test_ipv4patterns():
 
 def test_cidr():
     assert int2ip(CIDR.from_str("192.168.0.0/24")._mask()) == "255.255.255.0"
+    assert CIDR.from_str("192.168.0.0/24").ip == "192.168.0.0"
 
     assert str(CIDR.from_str("192.168.0.1/24").normalized()) == "192.168.0.0/24"
     assert str(CIDR.from_str("192.168.1.0/23").normalized()) == "192.168.0.0/23"

@@ -29,8 +29,12 @@ class CIDR:
             total = (total << 8) | int(i)
         return total
 
+    @property
+    def ip(self):
+        return self._int2ip(self.prefix)
+
     def __str__(self):
-        return f"{self._int2ip(self.prefix)}/{self.suffix}"
+        return f"{self.ip}/{self.suffix}"
 
     def __lt__(self, other):
         assert isinstance(other, CIDR)

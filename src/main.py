@@ -1,17 +1,19 @@
 import argparse
 from collections import deque
+from typing import Deque, Callable
 
 from ip import aggregate_subnets
 from ip.convert import CIDR, CIDRv6
+from ip.db import create_connection, delete_and_insert_into
 
 
-def write_plain_text(to_file, ranges_v4, ranges_v6):
+def write_plain_text(to_file, ranges_v4: Deque[CIDR], ranges_v6: Deque[CIDR]):
     with open(to_file, "w") as f:
         for x in ranges_v4 + ranges_v6:
             f.write(f"{x}\n")
 
 
-def write_rsc(to_file, ranges_v4, ranges_v6):
+def write_rsc(to_file, ranges_v4: Deque[CIDR], ranges_v6: Deque[CIDR]):
     with open(to_file, "w") as f:
         f.write("/ip firewall address-list\n")
         for x in ranges_v4:
@@ -22,7 +24,18 @@ def write_rsc(to_file, ranges_v4, ranges_v6):
             f.write(f'add address={x} comment="Czech Republic" list=Country_IP_Allows\n')
 
 
-def process_file(from_file, to_file, write_routine):
+def write_to_db(to_file, ranges_v4: Deque[CIDR], ranges_v6: Deque[CIDR]):
+    with open(to_file) as f:
+        exec(f.read())
+    connection = create_connection(locals()["ADDRESS"], locals()["USER"], locals()["PASSWORD"], locals()["DB"])
+    try:
+        delete_and_insert_into(connection, "address_list_ipv4", ranges_v4)
+        delete_and_insert_into(connection, "address_list_ipv6", ranges_v6)
+    finally:
+        connection.close()
+
+
+def process_file(from_file, to_file: str, write_routine: Callable[[str, Deque[CIDR], Deque[CIDR]], None]):
     with open(from_file) as f:
         print(f"Loading {from_file}...")
         ranges_v4 = deque()
@@ -92,11 +105,10 @@ def cli():
                                             f" soubor {destination} musí být Python skript!"
         with open(destination) as f:
             exec(f.read())
-        db_vars = {"ADDRESS", "PORT", "DB", "USER", "PASSWORD"}
+        db_vars = {"ADDRESS", "DB", "USER", "PASSWORD"}
         assert db_vars.issubset(locals().keys()), f"Chybí tyto hodnoty: {db_vars - locals().keys()}"
-        print(f">>> Tady bude připojení k DB {locals()['ADDRESS']} jako uživatel {locals()['USER']} "
-              f"heslem {locals()['PASSWORD']}")
-        write_routine = write_rsc if destination.lower().endswith(".rsc") else write_plain_text
+        # TODO: podpora CZ+SK
+        process_file(from_file=args.from_file, to_file=destination, write_routine=write_to_db)
     else:
         raise ValueError(f"Nebyla zvolena žádná známá akce;\nargs={args}")
 
