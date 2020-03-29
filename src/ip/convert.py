@@ -1,5 +1,11 @@
 import re
-from dataclasses import dataclass
+
+try:
+    from dataclasses import dataclass
+except ModuleNotFoundError:
+    print("Je potřeba nainstalovat balík 'dataclasses' následujícím příkazem:\n"
+          "pip3 install dataclasses\n")
+    raise
 from operator import sub
 
 from ip import lowest_bit_on

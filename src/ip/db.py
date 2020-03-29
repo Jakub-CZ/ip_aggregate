@@ -6,7 +6,7 @@ try:
     import mysql.connector
     from mysql.connector import Error
     from mysql.connector.connection import MySQLConnection
-except ImportError as e:
+except ModuleNotFoundError as e:
     if e.name == "mysql":
         print("Je potřeba nainstalovat balík 'mysql-connector-python' následujícím příkazem:\n"
               "pip3 install mysql-connector-python\n")
