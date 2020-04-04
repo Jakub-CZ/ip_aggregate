@@ -133,8 +133,6 @@ def cli():
     else:
         raise ValueError(f"Nebyla zvolena žádná známá akce;\nargs={args}")
 
-    print("Dokončeno.")
-
 
 if __name__ == '__main__':
     cli()
