@@ -27,24 +27,26 @@ def create_connection(host_name, user_name, user_password, database):
 FIREWALL_LIST = "Country_IP_Allows"
 
 
-def delete_and_insert_into(connection: MySQLConnection, table, ip_ranges: Deque[CIDR]):
+def insert_into(connection: MySQLConnection, table, ip_ranges: Deque[CIDR], comment: str, delete_old: bool = False):
     try:
         count_where_list = f"SELECT COUNT(*) FROM {table} WHERE list = %s"
         cursor = connection.cursor()
         cursor.execute(count_where_list, (FIREWALL_LIST,))
-        print(f"Z tabulky {table} bude odstraněno {cursor.fetchone()[0]} řádků.")
         cursor.close()
-
-        delete_where_list = f"DELETE FROM {table} WHERE list = %s"
-        cursor = connection.cursor()
-        cursor.execute(delete_where_list, (FIREWALL_LIST,))
-        cursor.close()
+        if not delete_old:
+            print(f"Před vložením nových dat je v tabulce {table} {cursor.fetchone()[0]} řádků.")
+        else:
+            print(f"Z tabulky {table} bude odstraněno {cursor.fetchone()[0]} řádků.")
+            delete_where_list = f"DELETE FROM {table} WHERE list = %s"
+            cursor = connection.cursor()
+            cursor.execute(delete_where_list, (FIREWALL_LIST,))
+            cursor.close()
 
         insert_query = (f"INSERT INTO {table} (address, mask, list, comment, disabled) "
                         "VALUES (%s, %s, %s, %s, %s)")
         cursor = connection.cursor()
         cursor.executemany(insert_query,
-                           [(ip.ip, ip.suffix, FIREWALL_LIST, "Czech Republic", 0) for ip in ip_ranges])
+                           [(ip.ip, ip.suffix, FIREWALL_LIST, comment, 0) for ip in ip_ranges])
         connection.commit()
         cursor.close()
         print(f"Bylo vloženo {len(ip_ranges)} řádků.")
