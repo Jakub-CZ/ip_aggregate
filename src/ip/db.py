@@ -32,11 +32,12 @@ def insert_into(connection: MySQLConnection, table, ip_ranges: Deque[CIDR], comm
         count_where_list = f"SELECT COUNT(*) FROM {table} WHERE list = %s"
         cursor = connection.cursor()
         cursor.execute(count_where_list, (FIREWALL_LIST,))
+        old_count = cursor.fetchone()[0]
         cursor.close()
         if not delete_old:
-            print(f"Před vložením nových dat je v tabulce {table} {cursor.fetchone()[0]} řádků.")
+            print(f"Před vložením nových dat je v tabulce {table} {old_count} řádků.")
         else:
-            print(f"Z tabulky {table} bude odstraněno {cursor.fetchone()[0]} řádků.")
+            print(f"Z tabulky {table} bude odstraněno {old_count} řádků.")
             delete_where_list = f"DELETE FROM {table} WHERE list = %s"
             cursor = connection.cursor()
             cursor.execute(delete_where_list, (FIREWALL_LIST,))
